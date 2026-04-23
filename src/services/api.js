@@ -1,8 +1,9 @@
-// Configuración compartida de API
-const API_BASE = import.meta.env.VITE_API_URL || "https://luxxxxroom.ngrok.app/api";
-const BASE_URL = API_BASE.replace(/\/api$/, "");
+// Configuracion compartida de API.
+// VITE_API_URL debe apuntar al host base, por ejemplo: http://localhost:8080
+const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(/\/$/, "");
+const BASE_URL = API_ORIGIN;
 
-export { API_BASE };
+export { API_ORIGIN };
 
 // URL del WebSocket STOMP (Spring Boot con SockJS)
 export const WS_URL =
@@ -12,14 +13,13 @@ export const WS_URL =
 // Cabeceras comunes para todas las peticiones
 export const API_HEADERS = {
   "Content-Type": "application/json",
-  "ngrok-skip-browser-warning": "true",
 };
 
 /**
  * Wrapper fetch con cabeceras comunes y manejo de errores
  */
 export async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${API_ORIGIN}${path}`, {
     ...options,
     headers: { ...API_HEADERS, ...options.headers },
   });

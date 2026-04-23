@@ -1,13 +1,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { apiFetch as sharedApiFetch, API_ORIGIN } from "../services/api";
 
 const AuthContext = createContext(null);
 
-// ══════════════════════════════════════════════
-// Cambiar a la URL donde corre la API de tu compañero
-// En tu laptop: http://localhost:8080
-// En red: http://192.168.X.X:8080
-// ══════════════════════════════════════════════
-const API_URL = "http://localhost:8080";
+const API_URL = API_ORIGIN;
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -33,16 +29,9 @@ function AuthProvider({ children }) {
     sessionStorage.removeItem("user");
   }
 
-  // Fetch helper que usa la API_URL
+  // Fetch helper compartido para todas las llamadas al backend
   async function apiFetch(path, options = {}) {
-    const res = await fetch(`${API_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...options.headers },
-      ...options,
-    });
-    if (!res.ok) {
-      throw new Error(`Error ${res.status}: ${res.statusText}`);
-    }
-    return res.json();
+    return sharedApiFetch(path, options);
   }
 
   return (

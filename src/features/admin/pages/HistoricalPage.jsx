@@ -1,15 +1,58 @@
 import { useState, useEffect } from "react";
 import { COLORS as C } from "../constants";
 import { ArrowLeftIcon } from "../components/Icons";
+import MiniChart from "../components/MiniChart";
+import { getEventosAula, getLuxHistorial } from "../services/adminService";
 
 function HistoricalPage({ aulas, onBack }) {
   const [show, setShow] = useState(false);
   const [selected, setSelected] = useState(null);
   const [period, setPeriod] = useState("hoy");
+  const [luxData, setLuxData] = useState([]);
+  const [eventos, setEventos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     requestAnimationFrame(() => setShow(true));
   }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    cargarHistorico(selected.id, period);
+  }, [selected, period]);
+
+  function calcularLimite(periodo) {
+    if (periodo === "mes") return 200;
+    if (periodo === "semana") return 100;
+    return 50;
+  }
+
+  async function cargarHistorico(idAula, periodo) {
+    setLoading(true);
+    setError(null);
+    try {
+      const limite = calcularLimite(periodo);
+      const [lux, ev] = await Promise.all([
+        getLuxHistorial(idAula, limite),
+        getEventosAula(idAula),
+      ]);
+
+      const luxNormalizado = (Array.isArray(lux) ? lux : []).map((x) => ({
+        t: x.timestamp,
+        v: Number(x.valorLux) || 0,
+      }));
+
+      setLuxData(luxNormalizado);
+      setEventos(Array.isArray(ev) ? ev : []);
+    } catch (e) {
+      setError("No se pudieron cargar datos historicos del backend");
+      setLuxData([]);
+      setEventos([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
@@ -114,20 +157,73 @@ function HistoricalPage({ aulas, onBack }) {
             ))}
           </div>
 
-          {/* Sin datos históricos disponibles */}
+          {error && (
+            <div
+              style={{
+                background: "#f4433615",
+                border: "1px solid #f4433640",
+                borderRadius: 10,
+                padding: "12px 16px",
+                marginBottom: 16,
+                fontSize: 12,
+                color: "#f44336",
+                textAlign: "center",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {loading && (
+            <p style={{ color: C.textSub, fontSize: 12, marginBottom: 16 }}>
+              Cargando historico...
+            </p>
+          )}
+
+          {!loading && luxData.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <MiniChart data={luxData} color={C.blue} label={`Lux - ${selected.nombre}`} unit=" lx" />
+            </div>
+          )}
+
           <div
             style={{
               background: C.card,
               border: `1.5px solid ${C.border}40`,
               borderRadius: 12,
-              padding: "40px 20px",
-              textAlign: "center",
+              padding: "14px 14px",
             }}
           >
-            <div style={{ fontSize: 13, color: C.textSub }}>
-              No hay datos históricos disponibles para{" "}
-              <span style={{ color: C.white, fontWeight: 600 }}>{selected.nombre}</span>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 10 }}>
+              Ultimos eventos MQTT
             </div>
+
+            {eventos.length === 0 ? (
+              <div style={{ fontSize: 12, color: C.textSub }}>
+                No hay eventos disponibles para esta aula
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {eventos.slice(0, 12).map((e) => (
+                  <div
+                    key={e.idEvento}
+                    style={{
+                      border: "1px solid #333",
+                      borderRadius: 8,
+                      padding: "8px 10px",
+                      fontSize: 11,
+                      color: C.textSub,
+                    }}
+                  >
+                    <div style={{ color: C.white, fontWeight: 600, marginBottom: 4 }}>
+                      {e.tipoEvento?.descripcion || "evento"}
+                    </div>
+                    <div style={{ marginBottom: 2 }}>{e.topicoMqtt}</div>
+                    <div>{e.timestamp}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 
 const C = {
@@ -7,20 +7,35 @@ const C = {
   red: "#f44336", green: "#4caf50",
 };
 
-// Usuarios predefinidos (deben coincidir con los de la BD)
-const USUARIOS = [
-  { idUsuario: 1, nombre: "Dra. Alma Marcela Gozo", rol: "Administrador" },
-  { idUsuario: 2, nombre: "Prof. García", rol: "Docente" },
-  { idUsuario: 3, nombre: "Prof. López", rol: "Docente" },
-  { idUsuario: 4, nombre: "Prof. Martínez", rol: "Docente" },
-  { idUsuario: 5, nombre: "Prof. Díaz", rol: "Docente" },
-];
-
 function LoginPage() {
   const { login, apiFetch } = useAuth();
+  const [usuarios, setUsuarios] = useState([]);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    cargarUsuarios();
+  }, []);
+
+  async function cargarUsuarios() {
+    setChecking(true);
+    setError("");
+    try {
+      const data = await apiFetch("/api/usuarios");
+      const normalizados = (Array.isArray(data) ? data : []).map((u) => ({
+        idUsuario: u.idUsuario,
+        nombre: u.nombre,
+        rol: u.rol?.nombreRol || "Docente",
+      }));
+      setUsuarios(normalizados);
+    } catch (err) {
+      setError("No se puede conectar al servidor. Verifica que el backend este corriendo.");
+      setUsuarios([]);
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function handleLogin() {
     if (!selected) return;
@@ -28,9 +43,8 @@ function LoginPage() {
     setChecking(true);
 
     try {
-      // Verificar que el backend esté corriendo
+      // Verificar backend y autenticacion local por seleccion de usuario
       await apiFetch("/api/aulas");
-      // Si llega aquí, el backend responde
       login(selected.nombre, selected.rol, selected.idUsuario);
     } catch (err) {
       setError("No se puede conectar al servidor. Verifica que el backend esté corriendo.");
@@ -79,12 +93,20 @@ function LoginPage() {
             fontSize: 12, color: C.red, textAlign: "center",
           }}>
             {error}
+            <button onClick={cargarUsuarios} style={{
+              display: "block", margin: "10px auto 0", padding: "6px 14px",
+              borderRadius: 6, border: `1px solid ${C.blue}`, background: "transparent",
+              color: C.blue, fontSize: 11, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+            }}>
+              Reintentar
+            </button>
           </div>
         )}
 
         {/* User list */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-          {USUARIOS.map((u) => (
+          {usuarios.map((u) => (
             <button
               key={u.idUsuario}
               onClick={() => setSelected(u)}
@@ -108,6 +130,12 @@ function LoginPage() {
               </span>
             </button>
           ))}
+
+          {!checking && usuarios.length === 0 && !error && (
+            <div style={{ fontSize: 12, color: C.textSub, textAlign: "center", padding: "8px 0" }}>
+              No hay usuarios activos disponibles
+            </div>
+          )}
         </div>
 
         {/* Login button */}
