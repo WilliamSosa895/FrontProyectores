@@ -1,55 +1,38 @@
-// Base URL del backend (configurar según ambiente)
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+// Todas las llamadas a la API real del backend
+// No emula nada — si el backend está apagado, lanza error
 
-/**
- * Obtener lista de aulas disponibles
- */
+const API_URL = "http://localhost:8080";
+
 export async function getAulas() {
-  const res = await fetch(`${API_BASE}/aulas`);
-  if (!res.ok) throw new Error("Error al obtener aulas");
+  const res = await fetch(`${API_URL}/api/aulas`);
+  if (!res.ok) throw new Error("Error al obtener aulas — ¿está corriendo el backend?");
   return res.json();
 }
 
-/**
- * Obtener detalle de un aula específica (lux, persianas, pantalla, proyector)
- */
 export async function getAulaDetalle(idAula) {
-  const res = await fetch(`${API_BASE}/aulas/${idAula}`);
+  const res = await fetch(`${API_URL}/api/aulas/${idAula}`);
   if (!res.ok) throw new Error("Error al obtener detalle del aula");
   return res.json();
 }
 
-/**
- * Enviar solicitud para encender el proyector de un aula
- */
+export async function getDispositivosAula(idAula) {
+  const res = await fetch(`${API_URL}/api/aulas/${idAula}/dispositivos`);
+  if (!res.ok) throw new Error("Error al obtener dispositivos");
+  return res.json();
+}
+
 export async function solicitarEncendido(idAula, idUsuario) {
-  const res = await fetch(`${API_BASE}/solicitudes`, {
+  const res = await fetch(`${API_URL}/api/solicitudes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id_aula: idAula, id_usuario: idUsuario }),
+    body: JSON.stringify({ idAula, idUsuario }),
   });
   if (!res.ok) throw new Error("Error al enviar solicitud");
   return res.json();
 }
 
-/**
- * Enviar solicitud para apagar el proyector de un aula
- */
-export async function solicitarApagado(idAula, idUsuario) {
-  const res = await fetch(`${API_BASE}/solicitudes/apagar`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id_aula: idAula, id_usuario: idUsuario }),
-  });
-  if (!res.ok) throw new Error("Error al apagar proyector");
-  return res.json();
-}
-
-/**
- * Obtener historial de solicitudes del usuario
- */
-export async function getSolicitudesUsuario(idUsuario) {
-  const res = await fetch(`${API_BASE}/solicitudes/usuario/${idUsuario}`);
-  if (!res.ok) throw new Error("Error al obtener solicitudes");
+export async function getSolicitud(idSolicitud) {
+  const res = await fetch(`${API_URL}/api/solicitudes/${idSolicitud}`);
+  if (!res.ok) throw new Error("Error al consultar solicitud");
   return res.json();
 }
