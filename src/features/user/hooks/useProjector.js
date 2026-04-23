@@ -1,112 +1,153 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { solicitarEncendido, getSolicitud, getDispositivosAula } from "../services/projectorService";
 
-// Pasos del flujo de activación
-const STEPS = [
-  { label: "Verificando luminosidad", detail: "" },
-  { label: "Cerrando persianas", detail: "Reduciendo luz ambiental" },
-  { label: "Luminosidad óptima", detail: "Nivel adecuado alcanzado" },
+const ALL_STEPS = [
+  { label: "Solicitud enviada", detail: "Procesando..." },
+  { label: "Verificando luminosidad", detail: "Leyendo sensor" },
+  { label: "Apagando luces", detail: "Reduciendo luz artificial" },
+  { label: "Cerrando persianas", detail: "Reduciendo luz natural" },
   { label: "Desplegando pantalla", detail: "Pantalla en posición" },
+  { label: "Encendiendo proyector", detail: "Casi listo..." },
   { label: "Proyector encendido", detail: "Listo para usar" },
 ];
 
-const INITIAL_LUX = 210;
-const TARGET_LUX = 75;
-const TOTAL_STEPS = STEPS.length;
+const STEPS_MAP = {
+  "PROCESANDO":            { index: 0 },
+  "VERIFICANDO_LUX":       { index: 1 },
+  "APAGANDO_LUCES":        { index: 2 },
+  "CERRANDO_PERSIANAS":    { index: 3 },
+  "BAJANDO_PANTALLA":      { index: 4 },
+  "ENCENDIENDO_PROYECTOR": { index: 5 },
+  "COMPLETADA":            { index: 6 },
+  "ERROR":                 { index: -1 },
+};
 
-export default function useProjector() {
+export default function useProjector(idAula) {
   const [isOn, setIsOn] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [lux, setLux] = useState(INITIAL_LUX);
-  const [persianas, setPersianas] = useState("abiertas");
-  const [pantalla, setPantalla] = useState("arriba");
+  const [error, setError] = useState(null);
   const [stepIndex, setStepIndex] = useState(-1);
-  const [ringPulse, setRingPulse] = useState(false);
+  const [dispositivos, setDispositivos] = useState({});
+  const [lux, setLux] = useState(null);
+  const [solicitudId, setSolicitudId] = useState(null);
+  const pollRef = useRef(null);
 
-  // Progreso del anillo (0 a 1)
-  const progress = isOn
-    ? 1
-    : stepIndex >= 0
-    ? (stepIndex + 1) / TOTAL_STEPS
-    : 0;
+  const steps = ALL_STEPS;
+  const luxOk = lux !== null && lux <= 100;
+  const progress = isOn ? 1 : stepIndex >= 0 ? (stepIndex + 1) / steps.length : 0;
+  const ringPulse = processing;
 
-  // Steps con detalle dinámico del lux
-  const steps = STEPS.map((s, i) =>
-    i === 0 ? { ...s, detail: `${lux} lux detectados` } : s
-  );
+  // Cargar dispositivos del aula
+  const cargarDispositivos = useCallback(async () => {
+    if (!idAula) return;
+    try {
+      const data = await getDispositivosAula(idAula);
+      const map = {};
+      if (Array.isArray(data)) {
+        data.forEach((d) => {
+          // La API devuelve: d.tipo.nombreTipo = "lux_sensor", "light", etc.
+          const tipo = d.tipo?.nombreTipo || "";
+          const estado = d.estadoActual || "UNKNOWN";
+          map[tipo] = estado;
+        });
+      }
+      setDispositivos(map);
 
-  const luxOk = lux <= 100;
+      // Detectar si el proyector está encendido
+      if (map["projector"] === "ON") {
+        setIsOn(true);
+      } else if (map["projector"] === "OFF") {
+        setIsOn(false);
+      }
 
-  const encender = useCallback(() => {
-    if (processing || isOn) return;
+      // Detectar lux (si es un número)
+      const luxVal = map["lux_sensor"];
+      if (luxVal && !isNaN(luxVal)) {
+        setLux(parseInt(luxVal));
+      } else if (luxVal === "UNKNOWN") {
+        setLux(null);
+      }
+    } catch (err) {
+      setError("No se pueden cargar los dispositivos — ¿backend corriendo?");
+    }
+  }, [idAula]);
+
+  useEffect(() => {
+    cargarDispositivos();
+    const interval = setInterval(cargarDispositivos, 3000);
+    return () => clearInterval(interval);
+  }, [cargarDispositivos]);
+
+  // Poll de solicitud activa
+  useEffect(() => {
+    if (!solicitudId || !processing) return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const sol = await getSolicitud(solicitudId);
+        const estado = (sol.estado || "").toUpperCase();
+
+        const mapped = STEPS_MAP[estado];
+        if (mapped) {
+          setStepIndex(mapped.index);
+        }
+
+        if (estado === "COMPLETADA") {
+          setIsOn(true);
+          setProcessing(false);
+          setSolicitudId(null);
+          clearInterval(pollRef.current);
+          cargarDispositivos();
+        } else if (estado === "ERROR") {
+          setError(sol.detalle || "Error en el proceso");
+          setProcessing(false);
+          setSolicitudId(null);
+          clearInterval(pollRef.current);
+        }
+      } catch (err) {
+        // Si no puede consultar, sigue intentando
+      }
+    }, 2000);
+
+    return () => clearInterval(pollRef.current);
+  }, [solicitudId, processing, cargarDispositivos]);
+
+  const encender = useCallback(async (idUsuario) => {
+    if (processing || isOn || !idAula) return;
     setProcessing(true);
-    setRingPulse(true);
+    setError(null);
     setStepIndex(0);
 
-    // TODO: Reemplazar timeouts con llamadas reales al backend/MQTT
-    setTimeout(() => {
-      setStepIndex(1);
-      setPersianas("cerrando");
-    }, 1400);
-
-    setTimeout(() => {
-      setLux(TARGET_LUX);
-      setPersianas("cerradas");
-      setStepIndex(2);
-    }, 3200);
-
-    setTimeout(() => {
-      setPantalla("abajo");
-      setStepIndex(3);
-    }, 4400);
-
-    setTimeout(() => {
-      setIsOn(true);
-      setStepIndex(4);
+    try {
+      const res = await solicitarEncendido(idAula, idUsuario);
+      setSolicitudId(res.idSolicitud || res.id);
+    } catch (err) {
+      setError(err.message);
       setProcessing(false);
-      setRingPulse(false);
-    }, 5600);
-  }, [processing, isOn]);
-
-  const apagar = useCallback(() => {
-    if (processing || !isOn) return;
-    setProcessing(true);
-    setRingPulse(true);
-
-    // TODO: Reemplazar con llamada real al backend
-    setTimeout(() => {
-      setIsOn(false);
-      setLux(INITIAL_LUX);
-      setPersianas("abiertas");
-      setPantalla("arriba");
       setStepIndex(-1);
-      setProcessing(false);
-      setRingPulse(false);
-    }, 1200);
-  }, [processing, isOn]);
-
-  const togglePower = useCallback(() => {
-    if (isOn) {
-      apagar();
-    } else {
-      encender();
     }
+  }, [processing, isOn, idAula]);
+
+  const apagar = useCallback(async () => {
+    setError("Función de apagado no implementada en el API aún");
+  }, []);
+
+  const togglePower = useCallback((idUsuario) => {
+    if (isOn) apagar();
+    else encender(idUsuario);
   }, [isOn, encender, apagar]);
 
+  // Estados legibles desde el mapa
+  const persianas = dispositivos["blind"] || "desconocido";
+  const pantallaOled = dispositivos["monitor"] || "desconocido";
+  const luces = dispositivos["light"] || "desconocido";
+  const pantalla = dispositivos["screen"] || "desconocido";
+
   return {
-    // Estado
-    isOn,
-    processing,
-    lux,
-    luxOk,
-    persianas,
-    pantalla,
-    stepIndex,
-    ringPulse,
-    progress,
-    steps,
-    // Acciones
-    encender,
-    apagar,
-    togglePower,
+    isOn, processing, lux, luxOk, error,
+    persianas, pantallaOled, luces, pantalla, dispositivos,
+    stepIndex, ringPulse, progress, steps,
+    encender, apagar, togglePower,
+    cargarDispositivos,
   };
 }
