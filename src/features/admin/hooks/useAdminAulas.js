@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getAulas, getDispositivosAula } from "../services/adminService";
+import { getAulas, getDispositivosAula, getLuxHistorial } from "../services/adminService";
 
 export default function useAdminAulas() {
   const [aulas, setAulas] = useState([]);
@@ -13,40 +13,47 @@ export default function useAdminAulas() {
       const normalized = [];
       const luxMap = {};
 
-      for (const a of aulasData) {
-        const id = a.idAula || a.id;
-        let dispositivos = {};
+      for (const aula of aulasData) {
+        const id = aula.idAula || aula.id;
+        const dispositivos = {};
 
-        try {
-          const devs = await getDispositivosAula(id);
-          if (Array.isArray(devs)) {
-            devs.forEach((d) => {
-              // La API devuelve: d.tipo.nombreTipo = "lux_sensor", "light", etc.
-              const tipo = d.tipo?.nombreTipo || "";
-              const estado = (d.estadoActual || "UNKNOWN").toUpperCase();
-              dispositivos[tipo] = estado;
-            });
+        const [devsResult, luxResult] = await Promise.allSettled([
+          getDispositivosAula(id),
+          getLuxHistorial(id, 1),
+        ]);
+
+        if (devsResult.status === "fulfilled" && Array.isArray(devsResult.value)) {
+          devsResult.value.forEach((dispositivo) => {
+            const tipo = dispositivo.tipo?.nombreTipo || "";
+            const estado = (dispositivo.estadoActual || "UNKNOWN").toUpperCase();
+            dispositivos[tipo] = estado;
+          });
+        }
+
+        if (luxResult.status === "fulfilled" && Array.isArray(luxResult.value)) {
+          const ultimaLectura = luxResult.value[0] || null;
+          const luxActual = Number(ultimaLectura?.valorLux);
+          if (!Number.isNaN(luxActual)) {
+            luxMap[id] = luxActual;
           }
-        } catch (e) {
-          // Si falla un aula, sigue con las demás
         }
 
-        const luxVal = dispositivos["lux_sensor"];
-        if (luxVal && !isNaN(luxVal)) {
-          luxMap[id] = parseInt(luxVal);
-        }
+        const getDeviceState = (tipo, fallback) => {
+          const value = (dispositivos[tipo] || "UNKNOWN").toUpperCase();
+          return value === "UNKNOWN" || value === "OFFLINE" ? fallback : value;
+        };
 
         normalized.push({
           id,
-          nombre: a.nombre || a.ubicacion || `Aula ${id}`,
-          ubicacion: a.ubicacion || "",
-          estado: a.estado || "disponible",
-          lux: luxMap[id] || 0,
-          proyector: dispositivos["projector"] === "ON",
-          persianas: dispositivos["blind"] === "CLOSED",
-          monitor: dispositivos["monitor"] === "ON",
-          luces: dispositivos["light"] === "ON",
-          telon: dispositivos["screen"] === "DEPLOYED",
+          nombre: aula.nombre || aula.ubicacion || `Aula ${id}`,
+          ubicacion: aula.ubicacion || "",
+          estado: aula.estado || "disponible",
+          lux: luxMap[id] ?? 0,
+          proyector: getDeviceState("projector", "OFF") === "ON",
+          persianas: getDeviceState("blind", "OPEN") === "CLOSED",
+          monitor: getDeviceState("monitor", "OFF") === "ON",
+          luces: getDeviceState("light", "ON") === "ON",
+          telon: getDeviceState("screen", "RETRACTED") === "DEPLOYED",
         });
       }
 
@@ -54,6 +61,7 @@ export default function useAdminAulas() {
       setLuxValues(luxMap);
       setError(null);
     } catch (err) {
+      console.error(err);
       setError("No se puede conectar al servidor");
     } finally {
       setLoading(false);
@@ -70,11 +78,18 @@ export default function useAdminAulas() {
   const proyectoresOn = aulas.filter((a) => a.proyector).length;
 
   return {
-    aulas, luxValues, activas, proyectoresOn,
-    totalAulas: aulas.length, error, loading,
+    aulas,
+    luxValues,
+    activas,
+    proyectoresOn,
+    totalAulas: aulas.length,
+    error,
+    loading,
   };
 }
 
 export function genLuxHistory() { return []; }
 export function genEventHistory() { return []; }
 export function genSolicitudes() { return []; }
+
+

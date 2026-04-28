@@ -1,5 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { solicitarEncendido, getSolicitud, getDispositivosAula } from "../services/projectorService";
+import {
+  solicitarEncendido,
+  getSolicitud,
+  getDispositivosAula,
+  getLuxHistorial,
+} from "../services/projectorService";
 
 const ALL_STEPS = [
   { label: "Solicitud enviada", detail: "Procesando..." },
@@ -37,21 +42,38 @@ export default function useProjector(idAula) {
   const progress = isOn ? 1 : stepIndex >= 0 ? (stepIndex + 1) / steps.length : 0;
   const ringPulse = processing;
 
-  // Cargar dispositivos del aula
+  const getDeviceState = useCallback((tipo, fallback) => {
+    const value = (dispositivos[tipo] || "UNKNOWN").toUpperCase();
+    return value === "UNKNOWN" || value === "OFFLINE" ? fallback : value;
+  }, [dispositivos]);
+
+  // Cargar dispositivos y lux actual del aula
   const cargarDispositivos = useCallback(async () => {
     if (!idAula) return;
+
     try {
-      const data = await getDispositivosAula(idAula);
+      const [devsResult, luxResult] = await Promise.allSettled([
+        getDispositivosAula(idAula),
+        getLuxHistorial(idAula, 1),
+      ]);
+
       const map = {};
-      if (Array.isArray(data)) {
-        data.forEach((d) => {
-          // La API devuelve: d.tipo.nombreTipo = "lux_sensor", "light", etc.
+      if (devsResult.status === "fulfilled" && Array.isArray(devsResult.value)) {
+        devsResult.value.forEach((d) => {
           const tipo = d.tipo?.nombreTipo || "";
-          const estado = d.estadoActual || "UNKNOWN";
+          const estado = (d.estadoActual || "UNKNOWN").toUpperCase();
           map[tipo] = estado;
         });
       }
       setDispositivos(map);
+
+      if (luxResult.status === "fulfilled" && Array.isArray(luxResult.value)) {
+        const ultimaLectura = luxResult.value[0] || null;
+        const luxActual = Number(ultimaLectura?.valorLux);
+        setLux(Number.isNaN(luxActual) ? null : luxActual);
+      } else {
+        setLux(null);
+      }
 
       // Detectar si el proyector está encendido
       if (map["projector"] === "ON") {
@@ -59,15 +81,8 @@ export default function useProjector(idAula) {
       } else if (map["projector"] === "OFF") {
         setIsOn(false);
       }
-
-      // Detectar lux (si es un número)
-      const luxVal = map["lux_sensor"];
-      if (luxVal && !isNaN(luxVal)) {
-        setLux(parseInt(luxVal));
-      } else if (luxVal === "UNKNOWN") {
-        setLux(null);
-      }
     } catch (err) {
+      console.error(err);
       setError("No se pueden cargar los dispositivos — ¿backend corriendo?");
     }
   }, [idAula]);
@@ -112,14 +127,14 @@ export default function useProjector(idAula) {
     return () => clearInterval(pollRef.current);
   }, [solicitudId, processing, cargarDispositivos]);
 
-  const encender = useCallback(async (idUsuario) => {
+  const encender = useCallback(async () => {
     if (processing || isOn || !idAula) return;
     setProcessing(true);
     setError(null);
     setStepIndex(0);
 
     try {
-      const res = await solicitarEncendido(idAula, idUsuario);
+      const res = await solicitarEncendido(idAula);
       setSolicitudId(res.idSolicitud || res.id);
     } catch (err) {
       setError(err.message);
@@ -132,16 +147,16 @@ export default function useProjector(idAula) {
     setError("Función de apagado no implementada en el API aún");
   }, []);
 
-  const togglePower = useCallback((idUsuario) => {
+  const togglePower = useCallback(() => {
     if (isOn) apagar();
-    else encender(idUsuario);
+    else encender();
   }, [isOn, encender, apagar]);
 
-  // Estados legibles desde el mapa
-  const persianas = dispositivos["blind"] || "desconocido";
-  const pantallaOled = dispositivos["monitor"] || "desconocido";
-  const luces = dispositivos["light"] || "desconocido";
-  const pantalla = dispositivos["screen"] || "desconocido";
+  // Estados legibles desde el mapa (fallbacks iniciales)
+  const persianas = getDeviceState("blind", "OPEN");
+  const pantallaOled = getDeviceState("monitor", "OFF");
+  const luces = getDeviceState("light", "ON");
+  const pantalla = getDeviceState("screen", "RETRACTED");
 
   return {
     isOn, processing, lux, luxOk, error,
@@ -151,3 +166,5 @@ export default function useProjector(idAula) {
     cargarDispositivos,
   };
 }
+
+

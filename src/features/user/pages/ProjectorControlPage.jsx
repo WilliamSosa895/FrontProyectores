@@ -8,11 +8,9 @@ import PowerButton from "../components/PowerButton";
 import StatusCard from "../components/StatusCard";
 import StepIndicator from "../components/StepIndicator";
 import useProjector from "../hooks/useProjector";
-import { useAuth } from "../../../context/AuthContext";
 
 function ProjectorControlPage({ aula, onBack }) {
   const [show, setShow] = useState(false);
-  const { user } = useAuth();
 
   const {
     isOn, processing, lux, luxOk, error,
@@ -26,7 +24,7 @@ function ProjectorControlPage({ aula, onBack }) {
   }, []);
 
   function handlePower() {
-    togglePower(user?.idUsuario || 1);
+    togglePower();
   }
 
   // Mapear estados de la API a labels legibles

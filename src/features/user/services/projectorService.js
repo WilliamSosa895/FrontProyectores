@@ -12,13 +12,17 @@ export async function getDispositivosAula(idAula) {
   return apiFetch(`/api/aulas/${idAula}/dispositivos`);
 }
 
-export async function solicitarEncendido(idAula, idUsuario) {
+export async function solicitarEncendido(idAula) {
   return apiFetch("/api/solicitudes", {
     method: "POST",
-    body: JSON.stringify({ idAula, idUsuario }),
+    body: JSON.stringify({ idAula }),
   });
 }
 
 export async function getSolicitud(idSolicitud) {
   return apiFetch(`/api/solicitudes/${idSolicitud}`);
+}
+
+export async function getLuxHistorial(idAula, limite = 1) {
+  return apiFetch(`/api/aulas/${idAula}/lux?limite=${limite}`);
 }

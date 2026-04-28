@@ -4,7 +4,7 @@ import AulaSelectPage from "./pages/AulaSelectPage";
 import ProjectorControlPage from "./pages/ProjectorControlPage";
 import { useAuth } from "../../context/AuthContext";
 
-function UserApp() {
+function UserApp({ readOnly = false }) {
   const [selectedAula, setSelectedAula] = useState(null);
   const { user, logout } = useAuth();
 
@@ -31,7 +31,7 @@ function UserApp() {
       {selectedAula ? (
         <ProjectorControlPage aula={selectedAula} onBack={() => setSelectedAula(null)} />
       ) : (
-        <AulaSelectPage onSelect={setSelectedAula} />
+        <AulaSelectPage onSelect={setSelectedAula} readOnly={readOnly} />
       )}
     </div>
   );

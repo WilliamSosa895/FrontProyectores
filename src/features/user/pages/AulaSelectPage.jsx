@@ -4,7 +4,7 @@ import { ProjectorIcon } from "../components/Icons";
 import AulaCard from "../components/AulaCard";
 import { getAulas } from "../services/projectorService";
 
-function AulaSelectPage({ onSelect }) {
+function AulaSelectPage({ onSelect, readOnly = false }) {
   const [show, setShow] = useState(false);
   const [aulas, setAulas] = useState([]);
   const [error, setError] = useState(null);
@@ -56,7 +56,7 @@ function AulaSelectPage({ onSelect }) {
           LuxRoom
         </h1>
         <p style={{ fontSize: 13, color: C.textSub, marginTop: 8 }}>
-          Selecciona tu aula para continuar
+          {readOnly ? "Vista de solo lectura" : "Selecciona tu aula para continuar"}
         </p>
       </div>
 
@@ -91,7 +91,8 @@ function AulaSelectPage({ onSelect }) {
           <AulaCard
             key={aula.id}
             aula={aula}
-            onClick={() => onSelect(aula)}
+            onClick={() => !readOnly && onSelect(aula)}
+            disabled={readOnly}
             delay={0.18 + i * 0.09}
             visible={show && !loading}
           />
