@@ -1,9 +1,10 @@
 import { COLORS as C } from "../constants";
 import { ProjectorIcon, ChevronRightIcon, MapPinIcon } from "./Icons";
 
-export default function AulaCard({ aula, onClick, delay = 0, visible = true }) {
+export default function AulaCard({ aula, onClick, delay = 0, visible = true, disabled = false }) {
   return (
     <button
+      disabled={disabled}
       onClick={onClick}
       style={{
         width: "100%",
@@ -14,7 +15,7 @@ export default function AulaCard({ aula, onClick, delay = 0, visible = true }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
         fontFamily: "inherit",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(24px)",

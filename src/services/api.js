@@ -1,8 +1,10 @@
-// Configuración compartida de API
-const API_BASE = import.meta.env.VITE_API_URL || "https://luxxxxroom.ngrok.app/api";
-const BASE_URL = API_BASE.replace(/\/api$/, "");
+// Configuracion compartida de API.
+// VITE_API_URL debe apuntar al host base, por ejemplo: http://localhost:8080
+const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(/\/$/, "");
+const BASE_URL = API_ORIGIN;
+const TOKEN_STORAGE_KEY = "authToken";
 
-export { API_BASE };
+export { API_ORIGIN };
 
 // URL del WebSocket STOMP (Spring Boot con SockJS)
 export const WS_URL =
@@ -12,19 +14,50 @@ export const WS_URL =
 // Cabeceras comunes para todas las peticiones
 export const API_HEADERS = {
   "Content-Type": "application/json",
-  "ngrok-skip-browser-warning": "true",
 };
+
+export function getStoredToken() {
+  return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function setStoredToken(token) {
+  if (token) sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+  else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+}
 
 /**
  * Wrapper fetch con cabeceras comunes y manejo de errores
  */
 export async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { ...API_HEADERS, ...options.headers },
+  const { auth = true, ...rest } = options;
+  const token = auth ? getStoredToken() : null;
+
+  const headers = {
+    ...API_HEADERS,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(rest.headers || {}),
+  };
+
+  const res = await fetch(`${API_ORIGIN}${path}`, {
+    ...rest,
+    headers,
   });
-  if (!res.ok) throw new Error(`Error ${res.status} en ${path}`);
-  return res.json();
+
+  const contentType = res.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  const payload = isJson ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    const message =
+      (isJson && payload?.error) ||
+      (typeof payload === "string" && payload) ||
+      `Error ${res.status} en ${path}`;
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
+  }
+
+  return payload;
 }
 
 /**

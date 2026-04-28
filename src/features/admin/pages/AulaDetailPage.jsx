@@ -18,7 +18,7 @@ function AulaDetailPage({ aula, luxValue, onBack }) {
     requestAnimationFrame(() => setShow(true));
   }, []);
 
-  const currentLux = luxValue || aula.lux;
+  const currentLux = luxValue ?? aula.lux;
 
   return (
     <div
@@ -140,3 +140,4 @@ function AulaDetailPage({ aula, luxValue, onBack }) {
 }
 
 export default AulaDetailPage;
+

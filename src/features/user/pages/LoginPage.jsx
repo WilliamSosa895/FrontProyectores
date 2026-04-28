@@ -7,36 +7,34 @@ const C = {
   red: "#f44336", green: "#4caf50",
 };
 
-// Usuarios predefinidos (deben coincidir con los de la BD)
-const USUARIOS = [
-  { idUsuario: 1, nombre: "Dra. Alma Marcela Gozo", rol: "Administrador" },
-  { idUsuario: 2, nombre: "Prof. García", rol: "Docente" },
-  { idUsuario: 3, nombre: "Prof. López", rol: "Docente" },
-  { idUsuario: 4, nombre: "Prof. Martínez", rol: "Docente" },
-  { idUsuario: 5, nombre: "Prof. Díaz", rol: "Docente" },
-];
-
 function LoginPage() {
-  const { login, apiFetch } = useAuth();
-  const [selected, setSelected] = useState(null);
+  const { loginWithCredentials } = useAuth();
+  const [nombre, setNombre] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
 
   async function handleLogin() {
-    if (!selected) return;
+    if (!nombre.trim() || !password) return;
     setError("");
     setChecking(true);
 
     try {
-      // Verificar que el backend esté corriendo
-      await apiFetch("/api/aulas");
-      // Si llega aquí, el backend responde
-      login(selected.nombre, selected.rol, selected.idUsuario);
+      await loginWithCredentials(nombre.trim(), password);
     } catch (err) {
-      setError("No se puede conectar al servidor. Verifica que el backend esté corriendo.");
+      if (err.status === 401) {
+        setError("Credenciales incorrectas. Verifica nombre y contrasena.");
+      } else {
+        setError("No se puede conectar al servidor. Verifica que el backend este corriendo.");
+      }
     } finally {
       setChecking(false);
     }
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    handleLogin();
   }
 
   return (
@@ -67,7 +65,7 @@ function LoginPage() {
             <span style={{ color: C.blue }}>Lux</span>Room
           </h1>
           <p style={{ fontSize: 13, color: C.textSub, marginTop: 6 }}>
-            Selecciona tu usuario para continuar
+            Inicia sesion para continuar
           </p>
         </div>
 
@@ -82,49 +80,49 @@ function LoginPage() {
           </div>
         )}
 
-        {/* User list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-          {USUARIOS.map((u) => (
-            <button
-              key={u.idUsuario}
-              onClick={() => setSelected(u)}
-              style={{
-                width: "100%", padding: "14px 16px", borderRadius: 10,
-                border: `1.5px solid ${selected?.idUsuario === u.idUsuario ? C.blue : C.border + "40"}`,
-                background: selected?.idUsuario === u.idUsuario ? C.blue + "15" : C.bg,
-                color: C.white, fontSize: 14, fontWeight: 500,
-                cursor: "pointer", fontFamily: "inherit",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                transition: "all 0.2s ease",
-              }}
-            >
-              <span>{u.nombre}</span>
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
-                background: u.rol === "Administrador" ? C.blue + "25" : C.green + "25",
-                color: u.rol === "Administrador" ? C.blue : C.green,
-              }}>
-                {u.rol === "Administrador" ? "ADMIN" : "DOCENTE"}
-              </span>
-            </button>
-          ))}
-        </div>
+        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="Nombre de usuario"
+            autoComplete="username"
+            style={{
+              width: "100%", padding: "14px 16px", borderRadius: 10,
+              border: `1.5px solid ${C.border + "60"}`,
+              background: C.bg, color: C.white, fontSize: 14,
+              fontFamily: "inherit", outline: "none",
+            }}
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Contrasena"
+            autoComplete="current-password"
+            style={{
+              width: "100%", padding: "14px 16px", borderRadius: 10,
+              border: `1.5px solid ${C.border + "60"}`,
+              background: C.bg, color: C.white, fontSize: 14,
+              fontFamily: "inherit", outline: "none",
+            }}
+          />
 
-        {/* Login button */}
-        <button
-          onClick={handleLogin}
-          disabled={!selected || checking}
-          style={{
-            width: "100%", padding: "14px 0", borderRadius: 10,
-            border: "none", background: selected ? C.blue : C.border + "40",
-            color: C.white, fontSize: 14, fontWeight: 700,
-            cursor: !selected || checking ? "not-allowed" : "pointer",
-            fontFamily: "inherit", opacity: checking ? 0.7 : 1,
-            transition: "all 0.2s",
-          }}
-        >
-          {checking ? "Conectando al servidor..." : "Entrar"}
-        </button>
+          <button
+            type="submit"
+            disabled={!nombre.trim() || !password || checking}
+            style={{
+              width: "100%", padding: "14px 0", borderRadius: 10,
+              border: "none", background: nombre.trim() && password ? C.blue : C.border + "40",
+              color: C.white, fontSize: 14, fontWeight: 700,
+              cursor: !nombre.trim() || !password || checking ? "not-allowed" : "pointer",
+              fontFamily: "inherit", opacity: checking ? 0.7 : 1,
+              transition: "all 0.2s",
+            }}
+          >
+            {checking ? "Validando credenciales..." : "Entrar"}
+          </button>
+        </form>
       </div>
     </div>
   );

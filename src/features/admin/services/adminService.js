@@ -1,24 +1,26 @@
-const API_URL = "http://localhost:8080";
+import { apiFetch } from "../../../services/api";
 
 export async function getAulas() {
-  const res = await fetch(`${API_URL}/api/aulas`);
-  if (!res.ok) throw new Error("Error al obtener aulas — ¿backend corriendo?");
-  return res.json();
+  return apiFetch("/api/aulas");
 }
 
 export async function getAulaDetalle(idAula) {
-  const res = await fetch(`${API_URL}/api/aulas/${idAula}`);
-  if (!res.ok) throw new Error("Error al obtener detalle del aula");
-  return res.json();
+  return apiFetch(`/api/aulas/${idAula}`);
 }
 
 export async function getDispositivosAula(idAula) {
-  const res = await fetch(`${API_URL}/api/aulas/${idAula}/dispositivos`);
-  if (!res.ok) throw new Error("Error al obtener dispositivos");
-  return res.json();
+  return apiFetch(`/api/aulas/${idAula}/dispositivos`);
 }
 
 export async function getSolicitudes() {
-  // TODO: cuando tu compañero agregue GET /api/solicitudes
+  // El API actual no expone GET /api/solicitudes
   return [];
+}
+
+export async function getLuxHistorial(idAula, limite = 50) {
+  return apiFetch(`/api/aulas/${idAula}/lux?limite=${limite}`);
+}
+
+export async function getEventosAula(idAula) {
+  return apiFetch(`/api/eventos?idAula=${idAula}`);
 }
