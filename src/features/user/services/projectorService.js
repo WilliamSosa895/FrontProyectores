@@ -19,6 +19,13 @@ export async function solicitarEncendido(idAula) {
   });
 }
 
+export async function solicitarApagado(idAula) {
+  return apiFetch("/api/solicitudes/apagar", {
+    method: "POST",
+    body: JSON.stringify({ idAula }),
+  });
+}
+
 export async function getSolicitud(idSolicitud) {
   return apiFetch(`/api/solicitudes/${idSolicitud}`);
 }

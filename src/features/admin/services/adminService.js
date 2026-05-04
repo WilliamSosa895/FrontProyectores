@@ -24,3 +24,10 @@ export async function getLuxHistorial(idAula, limite = 50) {
 export async function getEventosAula(idAula) {
   return apiFetch(`/api/eventos?idAula=${idAula}`);
 }
+
+export async function controlarActuadorAula(idAula, tipo, action) {
+  return apiFetch(`/api/admin/aulas/${idAula}/actuadores/${tipo}`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}

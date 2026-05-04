@@ -31,6 +31,7 @@ export function setStoredToken(token) {
 export async function apiFetch(path, options = {}) {
   const { auth = true, ...rest } = options;
   const token = auth ? getStoredToken() : null;
+  const method = (rest.method || "GET").toUpperCase();
 
   const headers = {
     ...API_HEADERS,
@@ -38,9 +39,17 @@ export async function apiFetch(path, options = {}) {
     ...(rest.headers || {}),
   };
 
-  const res = await fetch(`${API_ORIGIN}${path}`, {
+  const requestOptions = {
     ...rest,
     headers,
+  };
+
+  if (method === "GET" && requestOptions.cache === undefined) {
+    requestOptions.cache = "no-store";
+  }
+
+  const res = await fetch(`${API_ORIGIN}${path}`, {
+    ...requestOptions,
   });
 
   const contentType = res.headers.get("content-type") || "";

@@ -1,7 +1,8 @@
+/* eslint-disable react/prop-types */
 import { COLORS as C } from "../constants";
 import Toggle from "./Toggle";
 
-export default function DeviceStatus({ icon, label, on, color = C.blue }) {
+export default function DeviceStatus({ icon, label, on, color = C.blue, onToggle, disabled = false }) {
   return (
     <div
       style={{
@@ -51,7 +52,7 @@ export default function DeviceStatus({ icon, label, on, color = C.blue }) {
         >
           {on ? "Encendido" : "Apagado"}
         </span>
-        <Toggle on={on} color={color} />
+        <Toggle on={on} color={color} onClick={onToggle} disabled={disabled} />
       </div>
     </div>
   );
