@@ -9,14 +9,15 @@ import { useAuth } from "../../context/AuthContext";
 
 function AdminApp() {
   const [screen, setScreen] = useState("dashboard");
-  const [selectedAula, setSelectedAula] = useState(null);
+  const [selectedAulaId, setSelectedAulaId] = useState(null);
   const { user, logout } = useAuth();
 
   const { aulas, luxValues, activas, proyectoresOn, error } = useAdminAulas();
+  const selectedAula = aulas.find((a) => a.id === selectedAulaId) || null;
 
-  function goToDashboard() { setScreen("dashboard"); setSelectedAula(null); }
-  function goToDetail(aula) { setSelectedAula(aula); setScreen("detail"); }
-  function goToHistorical() { setScreen("historical"); setSelectedAula(null); }
+  function goToDashboard() { setScreen("dashboard"); setSelectedAulaId(null); }
+  function goToDetail(aula) { setSelectedAulaId(aula.id); setScreen("detail"); }
+  function goToHistorical() { setScreen("historical"); setSelectedAulaId(null); }
 
   return (
     <div style={{
@@ -78,7 +79,7 @@ function AdminApp() {
           />
         )}
         {screen === "detail" && selectedAula && (
-          <AulaDetailPage aula={selectedAula} luxValue={luxValues[selectedAula.id]} onBack={goToDashboard} />
+          <AulaDetailPage aula={selectedAula} luxValue={luxValues[selectedAulaId]} onBack={goToDashboard} />
         )}
         {screen === "historical" && (
           <HistoricalPage aulas={aulas} onBack={goToDashboard} />

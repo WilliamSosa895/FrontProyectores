@@ -1,8 +1,13 @@
+/* eslint-disable react/prop-types */
 import { COLORS as C } from "../constants";
 
-export default function Toggle({ on, color = C.green }) {
+export default function Toggle({ on, color = C.green, onClick, disabled = false }) {
+  const cursor = disabled ? "default" : onClick ? "pointer" : "default";
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={disabled ? undefined : onClick}
       style={{
         width: 38,
         height: 20,
@@ -12,6 +17,9 @@ export default function Toggle({ on, color = C.green }) {
         transition: "background 0.3s",
         display: "flex",
         alignItems: "center",
+        border: "none",
+        cursor,
+        opacity: disabled ? 0.55 : 1,
       }}
     >
       <div
@@ -24,6 +32,6 @@ export default function Toggle({ on, color = C.green }) {
           transition: "transform 0.3s",
         }}
       />
-    </div>
+    </button>
   );
 }

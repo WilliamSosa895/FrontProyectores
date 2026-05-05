@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
   solicitarEncendido,
+  solicitarApagado,
   getSolicitud,
   getDispositivosAula,
   getLuxHistorial,
@@ -144,8 +145,20 @@ export default function useProjector(idAula) {
   }, [processing, isOn, idAula]);
 
   const apagar = useCallback(async () => {
-    setError("Función de apagado no implementada en el API aún");
-  }, []);
+    if (processing || !isOn || !idAula) return;
+    setProcessing(true);
+    setError(null);
+
+    try {
+      await solicitarApagado(idAula);
+      setIsOn(false);
+      setProcessing(false);
+      cargarDispositivos();
+    } catch (err) {
+      setError(err.message);
+      setProcessing(false);
+    }
+  }, [processing, isOn, idAula, cargarDispositivos]);
 
   const togglePower = useCallback(() => {
     if (isOn) apagar();

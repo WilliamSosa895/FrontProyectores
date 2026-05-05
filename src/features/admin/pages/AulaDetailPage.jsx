@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 import { COLORS as C } from "../constants";
 import {
@@ -11,14 +12,37 @@ import {
 } from "../components/Icons";
 import LuxBar from "../components/LuxBar";
 import DeviceStatus from "../components/DeviceStatus";
+import { controlarActuadorAula } from "../services/adminService";
 
 function AulaDetailPage({ aula, luxValue, onBack }) {
   const [show, setShow] = useState(false);
+  const [busyKey, setBusyKey] = useState(null);
   useEffect(() => {
     requestAnimationFrame(() => setShow(true));
   }, []);
 
   const currentLux = luxValue ?? aula.lux;
+
+  function isDeviceOn(tipo) {
+    if (tipo === "blind") return !aula.persianas;
+    if (tipo === "projector") return Boolean(aula.proyector);
+    if (tipo === "light") return Boolean(aula.luces);
+    if (tipo === "screen") return Boolean(aula.telon);
+    return false;
+  }
+
+  async function toggleActuator(tipo, actionOn, actionOff) {
+    const isCurrentlyOn = isDeviceOn(tipo);
+    const action = isCurrentlyOn ? actionOff : actionOn;
+    const key = `${tipo}:${action}`;
+
+    try {
+      setBusyKey(key);
+      await controlarActuadorAula(aula.id, tipo, action);
+    } finally {
+      setBusyKey(null);
+    }
+  }
 
   return (
     <div
@@ -109,12 +133,16 @@ function AulaDetailPage({ aula, luxValue, onBack }) {
           label="Proyector"
           on={aula.proyector}
           color={C.green}
+          onToggle={() => toggleActuator("projector", "TURN_ON", "TURN_OFF")}
+          disabled={busyKey === `projector:${aula.proyector ? "TURN_OFF" : "TURN_ON"}`}
         />
         <DeviceStatus
           icon={<BlindsIcon size={16} color={!aula.persianas ? C.blue : C.textSub} />}
           label="Persianas"
           on={!aula.persianas}
           color={C.blue}
+          onToggle={() => toggleActuator("blind", "OPEN", "CLOSE")}
+          disabled={busyKey === `blind:${aula.persianas ? "OPEN" : "CLOSE"}`}
         />
         <DeviceStatus
           icon={<MonitorIcon size={16} color={aula.monitor ? C.cyan : C.textSub} />}
@@ -127,12 +155,16 @@ function AulaDetailPage({ aula, luxValue, onBack }) {
           label="Luces"
           on={aula.luces}
           color={C.orange}
+          onToggle={() => toggleActuator("light", "TURN_ON", "TURN_OFF")}
+          disabled={busyKey === `light:${aula.luces ? "TURN_OFF" : "TURN_ON"}`}
         />
         <DeviceStatus
           icon={<ScreenDropIcon size={16} color={aula.telon ? C.blue : C.textSub} />}
           label="Telón / Pantalla"
           on={aula.telon}
           color={C.blue}
+          onToggle={() => toggleActuator("screen", "DEPLOY", "RETRACT")}
+          disabled={busyKey === `screen:${aula.telon ? "RETRACT" : "DEPLOY"}`}
         />
       </div>
     </div>
