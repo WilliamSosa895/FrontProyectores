@@ -3,27 +3,42 @@ import { COLORS as C } from "../constants";
 export default function MiniChart({ data, color = C.blue, height = 140, label, unit = "" }) {
   if (!data || data.length === 0) return null;
 
-  const maxV = Math.max(...data.map((d) => d.v)) || 1;
-  const minV = Math.min(...data.map((d) => d.v));
+  // Defensive normalization: accept items with {t, v} (timestamp + value) or legacy {v}.
+  let normalized = [];
+  if (data[0] && Object.prototype.hasOwnProperty.call(data[0], "t")) {
+    // map timestamps to numbers and filter invalid
+    const map = new Map();
+    for (const it of data) {
+      const t = Number(it.t);
+      const v = Number(it.v) || 0;
+      if (!Number.isNaN(t)) map.set(t, { t, v });
+    }
+    normalized = Array.from(map.values()).sort((a, b) => a.t - b.t);
+  } else {
+    normalized = data.map((d, i) => ({ t: i, v: Number(d.v) || 0 }));
+  }
+
+  const maxV = Math.max(...normalized.map((d) => d.v)) || 1;
+  const minV = Math.min(...normalized.map((d) => d.v));
   const w = 100;
   const h = 100;
   const pad = 5;
 
-  const points = data
+  const points = normalized
     .map((d, i) => {
-      const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+      const x = pad + (i / (normalized.length - 1)) * (w - pad * 2);
       const y = h - pad - ((d.v - minV) / (maxV - minV || 1)) * (h - pad * 2);
       return `${x},${y}`;
     })
     .join(" ");
 
-  const lastIdx = data.length - 1;
-  const lastX = pad + (lastIdx / (data.length - 1)) * (w - pad * 2);
+  const lastIdx = normalized.length - 1;
+  const lastX = pad + (lastIdx / (normalized.length - 1)) * (w - pad * 2);
   const areaPoints =
     points + ` ${lastX},${h - pad} ${pad},${h - pad}`;
 
   // Último punto
-  const last = data[lastIdx];
+  const last = normalized[lastIdx];
   const dotX = lastX;
   const dotY =
     h - pad - ((last.v - minV) / (maxV - minV || 1)) * (h - pad * 2);
