@@ -38,12 +38,23 @@ function HistoricalPage({ aulas, onBack }) {
         getEventosAula(idAula),
       ]);
 
-      const luxNormalizado = (Array.isArray(lux) ? lux : []).map((x) => ({
-        t: x.timestamp,
-        v: Number(x.valorLux) || 0,
-      }));
+      // Normalizar timestamps a ms, ordenar cronológicamente y deduplicar por timestamp
+      const raw = Array.isArray(lux) ? lux : [];
+      const normalized = raw
+        .map((x) => ({
+          t: Number(new Date(x.timestamp).getTime()) || 0,
+          v: Number(x.valorLux) || 0,
+        }))
+        .filter((r) => !Number.isNaN(r.t));
 
-      setLuxData(luxNormalizado);
+      // Deduplicate by timestamp (keep last occurrence) and sort ascending
+      const byTs = new Map();
+      for (const r of normalized) {
+        byTs.set(r.t, r);
+      }
+      const dedupedSorted = Array.from(byTs.values()).sort((a, b) => a.t - b.t);
+
+      setLuxData(dedupedSorted);
       setEventos(Array.isArray(ev) ? ev : []);
     } catch (e) {
       setError("No se pudieron cargar datos historicos del backend");

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { COLORS as C } from "./constants";
-import { ProjectorIcon, UserIcon } from "./components/Icons";
+import { ProjectorIcon } from "./components/Icons";
 import useAdminAulas from "./hooks/useAdminAulas";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AulaDetailPage from "./pages/AulaDetailPage";
 import HistoricalPage from "./pages/HistoricalPage";
+import UsersManagementPage from "./pages/UsersManagementPage";
 import { useAuth } from "../../context/AuthContext";
 
 function AdminApp() {
@@ -18,6 +19,9 @@ function AdminApp() {
   function goToDashboard() { setScreen("dashboard"); setSelectedAulaId(null); }
   function goToDetail(aula) { setSelectedAulaId(aula.id); setScreen("detail"); }
   function goToHistorical() { setScreen("historical"); setSelectedAulaId(null); }
+  function goToUsers() { setScreen("users"); setSelectedAulaId(null); }
+
+  const contentMaxWidth = screen === "users" ? 1100 : 600;
 
   return (
     <div style={{
@@ -38,7 +42,7 @@ function AdminApp() {
             <ProjectorIcon size={14} color={C.blue} />
           </div>
           <span style={{ fontSize: 14, fontWeight: 700, color: C.white }}>
-            <span style={{ color: C.blue }}>Lux</span>Room
+            <span style={{ color: C.blue }}>Lux</span>{" "}Room
             <span style={{ fontSize: 10, color: C.textSub, marginLeft: 6 }}>Admin</span>
           </span>
         </div>
@@ -50,6 +54,12 @@ function AdminApp() {
             borderRadius: 6, padding: "5px 12px", color: C.white, fontSize: 11,
             fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
           }}>Aulas</button>
+          <button onClick={goToUsers} style={{
+            background: screen === "users" ? C.blue + "25" : "transparent",
+            border: `1px solid ${screen === "users" ? C.blue : "transparent"}`,
+            borderRadius: 6, padding: "5px 12px", color: C.white, fontSize: 11,
+            fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+          }}>Usuarios</button>
           <button onClick={goToHistorical} style={{
             background: screen === "historical" ? C.blue + "25" : "transparent",
             border: `1px solid ${screen === "historical" ? C.blue : "transparent"}`,
@@ -65,7 +75,7 @@ function AdminApp() {
       </div>
 
       {/* Content */}
-      <div style={{ padding: "20px 20px 40px", maxWidth: 600, margin: "0 auto" }}>
+      <div style={{ padding: "20px 20px 40px", maxWidth: contentMaxWidth, margin: "0 auto" }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: C.white, marginBottom: 20 }}>
           <span style={{ color: C.blue }}>Lux</span>Room
           {user && <span style={{ fontSize: 12, color: C.textSub, marginLeft: 10 }}>{user.nombre}</span>}
@@ -83,6 +93,9 @@ function AdminApp() {
         )}
         {screen === "historical" && (
           <HistoricalPage aulas={aulas} onBack={goToDashboard} />
+        )}
+        {screen === "users" && (
+          <UsersManagementPage />
         )}
       </div>
     </div>

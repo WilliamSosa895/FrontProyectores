@@ -4,6 +4,34 @@ export async function getAulas() {
   return apiFetch("/api/aulas");
 }
 
+export async function getUsuarios() {
+  return apiFetch("/api/usuarios/todos");
+}
+
+export async function getRoles() {
+  return apiFetch("/api/usuarios/roles");
+}
+
+export async function crearUsuario(payload) {
+  return apiFetch("/api/usuarios", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function actualizarUsuario(idUsuario, payload) {
+  return apiFetch(`/api/usuarios/${idUsuario}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function desactivarUsuario(idUsuario) {
+  return apiFetch(`/api/usuarios/${idUsuario}`, {
+    method: "DELETE",
+  });
+}
+
 export async function getAulaDetalle(idAula) {
   return apiFetch(`/api/aulas/${idAula}`);
 }
