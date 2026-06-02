@@ -99,9 +99,15 @@ function UsersManagementPage() {
     const nombre = form.nombre.trim();
     const rolId = Number(form.rolId);
     const password = form.password.trim();
+    const estado = form.estado?.trim().toLowerCase();
 
     if (!nombre) {
       setFormError("El nombre es obligatorio");
+      return;
+    }
+
+    if (nombre.length < 3 || nombre.length > 80) {
+      setFormError("El nombre debe tener entre 3 y 80 caracteres");
       return;
     }
 
@@ -115,13 +121,23 @@ function UsersManagementPage() {
       return;
     }
 
+    if (password && (password.length < 6 || password.length > 128)) {
+      setFormError("La contraseña debe tener entre 6 y 128 caracteres");
+      return;
+    }
+
+    if (editingUserId && !["activo", "inactivo"].includes(estado)) {
+      setFormError("Selecciona un estado válido");
+      return;
+    }
+
     const payload = {
       nombre,
       idRol: rolId,
     };
 
     if (editingUserId) {
-      payload.estado = form.estado;
+      payload.estado = estado;
       if (password) {
         payload.password = password;
       }

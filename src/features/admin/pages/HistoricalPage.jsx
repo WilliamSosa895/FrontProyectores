@@ -1,8 +1,17 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 import { COLORS as C } from "../constants";
 import { ArrowLeftIcon } from "../components/Icons";
 import MiniChart from "../components/MiniChart";
-import { getEventosAula, getLuxHistorial } from "../services/adminService";
+import StatCard from "../components/StatCard";
+import { getAuditoriaAula, getEventosAula, getLuxHistorial } from "../services/adminService";
+import useLuxSocket from "../hooks/useLuxSocket";
+
+function calcularLimite(periodo) {
+  if (periodo === "mes") return 200;
+  if (periodo === "semana") return 100;
+  return 50;
+}
 
 function HistoricalPage({ aulas, onBack }) {
   const [show, setShow] = useState(false);
@@ -10,8 +19,10 @@ function HistoricalPage({ aulas, onBack }) {
   const [period, setPeriod] = useState("hoy");
   const [luxData, setLuxData] = useState([]);
   const [eventos, setEventos] = useState([]);
+  const [auditoria, setAuditoria] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const selectedId = selected?.id || null;
 
   useEffect(() => {
     requestAnimationFrame(() => setShow(true));
@@ -22,20 +33,32 @@ function HistoricalPage({ aulas, onBack }) {
     cargarHistorico(selected.id, period);
   }, [selected, period]);
 
-  function calcularLimite(periodo) {
-    if (periodo === "mes") return 200;
-    if (periodo === "semana") return 100;
-    return 50;
-  }
+  useLuxSocket({
+    aulaIds: selectedId ? [selectedId] : [],
+    enabled: Boolean(selectedId),
+    onLux: ({ aulaId, value, timestamp }) => {
+      if (!selected || selected.id !== aulaId) {
+        return;
+      }
+
+      setLuxData((current) => {
+        const next = [...current.filter((item) => item.t !== timestamp), { t: timestamp, v: value }].sort(
+          (a, b) => a.t - b.t
+        );
+        return next.slice(-calcularLimite(period));
+      });
+    },
+  });
 
   async function cargarHistorico(idAula, periodo) {
     setLoading(true);
     setError(null);
     try {
       const limite = calcularLimite(periodo);
-      const [lux, ev] = await Promise.all([
+      const [lux, ev, aud] = await Promise.all([
         getLuxHistorial(idAula, limite),
         getEventosAula(idAula),
+        getAuditoriaAula(idAula),
       ]);
 
       // Normalizar timestamps a ms, ordenar cronológicamente y deduplicar por timestamp
@@ -56,10 +79,13 @@ function HistoricalPage({ aulas, onBack }) {
 
       setLuxData(dedupedSorted);
       setEventos(Array.isArray(ev) ? ev : []);
+      setAuditoria(aud && typeof aud === "object" ? aud : null);
     } catch (e) {
+      console.error(e);
       setError("No se pudieron cargar datos historicos del backend");
       setLuxData([]);
       setEventos([]);
+      setAuditoria(null);
     } finally {
       setLoading(false);
     }
@@ -194,6 +220,31 @@ function HistoricalPage({ aulas, onBack }) {
           {!loading && luxData.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <MiniChart data={luxData} color={C.blue} label={`Lux - ${selected.nombre}`} unit=" lx" />
+            </div>
+          )}
+
+          {selected && (
+            <div
+              style={{
+                background: C.card,
+                border: `1.5px solid ${C.border}40`,
+                borderRadius: 12,
+                padding: "14px 14px",
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 10 }}>
+                Auditoría del aula
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                <StatCard value={auditoria?.totalAcciones ?? 0} label="Total acciones" visible={show} />
+                <StatCard value={auditoria?.lucesApagadas ?? 0} label="Luces apagadas" visible={show} />
+                <StatCard value={auditoria?.lucesEncendidas ?? 0} label="Luces encendidas" visible={show} />
+                <StatCard value={auditoria?.persianasCerradas ?? 0} label="Persianas cerradas" visible={show} />
+                <StatCard value={auditoria?.persianasAbiertas ?? 0} label="Persianas abiertas" visible={show} />
+                <StatCard value={auditoria?.telonDesplegado ?? 0} label="Telón desplegado" visible={show} />
+                <StatCard value={auditoria?.proyectorEncendido ?? 0} label="Proyector encendido" visible={show} />
+              </div>
             </div>
           )}
 

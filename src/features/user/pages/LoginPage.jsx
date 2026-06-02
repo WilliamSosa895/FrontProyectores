@@ -15,12 +15,29 @@ function LoginPage() {
   const [checking, setChecking] = useState(false);
 
   async function handleLogin() {
-    if (!nombre.trim() || !password) return;
+    const cleanNombre = nombre.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanNombre) {
+      setError("El nombre de usuario es obligatorio.");
+      return;
+    }
+
+    if (!cleanPassword) {
+      setError("La contraseña es obligatoria.");
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
     setError("");
     setChecking(true);
 
     try {
-      await loginWithCredentials(nombre.trim(), password);
+      await loginWithCredentials(cleanNombre, cleanPassword);
     } catch (err) {
       if (err.status === 401) {
         setError("Credenciales incorrectas. Verifica nombre y contrasena.");
@@ -85,6 +102,7 @@ function LoginPage() {
             type="text"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
+            onBlur={() => setNombre((current) => current.trim())}
             placeholder="Nombre de usuario"
             autoComplete="username"
             style={{
@@ -98,6 +116,7 @@ function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setPassword((current) => current.trim())}
             placeholder="Contrasena"
             autoComplete="current-password"
             style={{
@@ -110,12 +129,12 @@ function LoginPage() {
 
           <button
             type="submit"
-            disabled={!nombre.trim() || !password || checking}
+            disabled={!nombre.trim() || !password.trim() || password.trim().length < 6 || checking}
             style={{
               width: "100%", padding: "14px 0", borderRadius: 10,
-              border: "none", background: nombre.trim() && password ? C.blue : C.border + "40",
+              border: "none", background: nombre.trim() && password.trim().length >= 6 ? C.blue : C.border + "40",
               color: C.white, fontSize: 14, fontWeight: 700,
-              cursor: !nombre.trim() || !password || checking ? "not-allowed" : "pointer",
+              cursor: !nombre.trim() || !password.trim() || password.trim().length < 6 || checking ? "not-allowed" : "pointer",
               fontFamily: "inherit", opacity: checking ? 0.7 : 1,
               transition: "all 0.2s",
             }}

@@ -6,10 +6,8 @@ const TOKEN_STORAGE_KEY = "authToken";
 
 export { API_ORIGIN };
 
-// URL del WebSocket STOMP (Spring Boot con SockJS)
-export const WS_URL =
-  BASE_URL.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://") +
-  "/ws/websocket";
+// URL del endpoint SockJS/STOMP. SockJS espera el endpoint base HTTP/HTTPS.
+export const WS_URL = BASE_URL + "/ws";
 
 // Cabeceras comunes para todas las peticiones
 export const API_HEADERS = {
@@ -18,6 +16,21 @@ export const API_HEADERS = {
 
 export function getStoredToken() {
   return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function ensurePositiveInt(value, label) {
+  const numberValue = Number(value);
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
+    throw new Error(`${label} inválido`);
+  }
+  return numberValue;
+}
+
+export function ensureNonEmptyString(value, label) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${label} inválido`);
+  }
+  return value.trim();
 }
 
 export function setStoredToken(token) {
@@ -36,8 +49,11 @@ export async function apiFetch(path, options = {}) {
   const headers = {
     ...API_HEADERS,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(rest.headers || {}),
   };
+
+  if (rest.headers) {
+    Object.assign(headers, rest.headers);
+  }
 
   const requestOptions = {
     ...rest,
