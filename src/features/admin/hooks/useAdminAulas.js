@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAulas, getDispositivosAula, getLuxHistorial } from "../services/adminService";
+import useLuxSocket from "./useLuxSocket";
 
 export default function useAdminAulas() {
   const [aulas, setAulas] = useState([]);
@@ -73,6 +74,15 @@ export default function useAdminAulas() {
     const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  useLuxSocket({
+    aulaIds: aulas.map((aula) => aula.id),
+    enabled: aulas.length > 0,
+    onLux: ({ aulaId, value }) => {
+      setLuxValues((current) => ({ ...current, [aulaId]: value }));
+      setAulas((current) => current.map((aula) => (aula.id === aulaId ? { ...aula, lux: value } : aula)));
+    },
+  });
 
   const activas = aulas.filter((a) => a.estado !== "mantenimiento").length;
   const proyectoresOn = aulas.filter((a) => a.proyector).length;

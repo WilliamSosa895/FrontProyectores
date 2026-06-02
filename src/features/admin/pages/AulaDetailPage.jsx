@@ -12,14 +12,45 @@ import {
 } from "../components/Icons";
 import LuxBar from "../components/LuxBar";
 import DeviceStatus from "../components/DeviceStatus";
+import StatCard from "../components/StatCard";
+import { getAuditoriaAula } from "../services/adminService";
 import { controlarActuadorAula } from "../services/adminService";
 
 function AulaDetailPage({ aula, luxValue, onBack }) {
   const [show, setShow] = useState(false);
   const [busyKey, setBusyKey] = useState(null);
+  const [audit, setAudit] = useState(null);
+  const [auditError, setAuditError] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
   useEffect(() => {
     requestAnimationFrame(() => setShow(true));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAudit() {
+      if (!aula?.id) return;
+      setAuditLoading(true);
+      setAuditError(null);
+      try {
+        const data = await getAuditoriaAula(aula.id);
+        if (active) setAudit(data);
+      } catch (err) {
+        if (active) {
+          setAudit(null);
+          setAuditError("No se pudo cargar la auditoría del aula");
+        }
+      } finally {
+        if (active) setAuditLoading(false);
+      }
+    }
+
+    loadAudit();
+    return () => {
+      active = false;
+    };
+  }, [aula?.id]);
 
   const currentLux = luxValue ?? aula.lux;
 
@@ -166,6 +197,28 @@ function AulaDetailPage({ aula, luxValue, onBack }) {
           onToggle={() => toggleActuator("screen", "DEPLOY", "RETRACT")}
           disabled={busyKey === `screen:${aula.telon ? "RETRACT" : "DEPLOY"}`}
         />
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 10 }}>
+          Auditoría por aula
+        </div>
+
+        {auditLoading ? (
+          <div style={{ color: C.textSub, fontSize: 12 }}>Cargando auditoría...</div>
+        ) : auditError ? (
+          <div style={{ color: C.red, fontSize: 12 }}>{auditError}</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+            <StatCard value={audit?.totalAcciones ?? 0} label="Total acciones" visible={show} />
+            <StatCard value={audit?.lucesApagadas ?? 0} label="Luces apagadas" visible={show} />
+            <StatCard value={audit?.lucesEncendidas ?? 0} label="Luces encendidas" visible={show} />
+            <StatCard value={audit?.persianasCerradas ?? 0} label="Persianas cerradas" visible={show} />
+            <StatCard value={audit?.persianasAbiertas ?? 0} label="Persianas abiertas" visible={show} />
+            <StatCard value={audit?.telonDesplegado ?? 0} label="Telón desplegado" visible={show} />
+            <StatCard value={audit?.proyectorEncendido ?? 0} label="Proyector encendido" visible={show} />
+          </div>
+        )}
       </div>
     </div>
   );
